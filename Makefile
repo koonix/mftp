@@ -1,34 +1,32 @@
 # config
-BIN = mftp
-CFLAGS = -pedantic -Wall -O2
-SRC = main.c tui.c server.c util.c
-OBJDIR = obj
+SRCS = main.c tui.c server.c util.c
+CFLAGS = -pedantic -Wall -Werror=implicit -Os
+
+OBJDIR := obj
+DEPDIR := $(OBJDIR)/dep
 
 # rules
-OBJ = $(addprefix $(OBJDIR)/, $(SRC:.c=.o))
-CONFSRC = $(shell grep -l '#include "config.h"' $(SRC))
-CONFOBJ = $(addprefix $(OBJDIR)/, $(CONFSRC:.c=.o))
-DEP = $(OBJ:.o=.d)
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-$(BIN): $(OBJ) config.h
-	@$(CC) $(CFLAGS) -o $(BIN) $(OBJ)
-	@echo $(BIN) compiled and linkes succesfully.
-
-$(OBJDIR)/%.o : %.c
-	@echo compiling $< ...
-	@$(CC) $(CFLAGS) -c $< -o $@
-
-$(CONFOBJ): config.h
+OBJS = $(SRCS:%.c=$(OBJDIR)/%.o)
+mftp: config.h $(OBJS)
+	@$(CC) $(CFLAGS) -o $@ $(OBJS)
+	@echo compiled successfully.
 
 config.h:
-	@cp -v config.def.h $@
+	cp config.def.h $@
 
-$(OBJDIR)/%.d: %.c
-	@$(CC) $(CFLAGS) -MM -MT '$(OBJDIR)/$(<:.c=.o) $(OBJDIR)/$(<:.c=.d)' $< > $@
+%.o: %.c
+$(OBJDIR)/%.o : %.c $(DEPDIR)/%.d | $(DEPDIR)
+	@echo compiling $< ...
+	@$(CC) $(DEPFLAGS) $(CFLAGS) -c $< -o $@
 
-include $(DEP)
+$(DEPDIR):
+	mkdir -p $@
+
+DEPFILES := $(SRCS:%.c=$(DEPDIR)/%.d)
+$(DEPFILES):
+include $(wildcard $(DEPFILES))
 
 clean:
-	@rm -fv -- $(OBJ) $(DEP) $(BIN)
-
-.PHONY: clean
+	@rm -rfv obj
