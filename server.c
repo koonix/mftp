@@ -31,7 +31,7 @@ void print_page(int page)
 void mount_and_open(int page, int num)
 {
     Server* sv = get_server(page, num);
-    if (sv == NULL || !mount(sv))
+    if (sv == NULL || !mount(*sv))
         return;
     tui_end();
     open_filemanager();
