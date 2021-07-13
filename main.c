@@ -42,6 +42,25 @@ static int handle_key(char key)
     else if (key == 'p' && page > 1)
         --page;
     else if (key >= '1' && key <= '9')
-        mount_and_open(page, key - '0');
+    {
+        pid_t mounting = fork();
+
+        if (mounting == 0) {
+            mount_and_open(page, key - '0');
+            exit(0);
+        }
+
+        pid_t blocking = fork();
+
+        if (blocking == 0) {
+            while(1)
+                getchar();
+        }
+
+        waitpid(mounting, NULL, 0);
+        kill(blocking, SIGKILL);
+
+        printf("done\n");
+    }
     return 0;
 }
