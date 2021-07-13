@@ -13,7 +13,7 @@ static void orig_screen();
 static void seq(char* s);
 static void no_stdin_buffering();
 static void restore_stdin_buffering();
-static void tui_end_sig(int sig);
+static void tui_end_sigfn(int sig);
 
 static struct termios told;
 
@@ -97,12 +97,17 @@ static void restore_stdin_buffering() {
 }
 
 static void handle_signals() {
-    signal(SIGINT, tui_end_sig);
-    signal(SIGTERM, tui_end_sig);
-    signal(SIGABRT, tui_end_sig);
+    signal(SIGINT, tui_end_sigfn);
+    signal(SIGTERM, tui_end_sigfn);
+    signal(SIGABRT, tui_end_sigfn);
 }
 
-static void tui_end_sig(int sig) {
+void tui_no_handle_sigint() {
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+}
+
+static void tui_end_sigfn(int sig) {
     tui_end();
     exit(1);
 }
