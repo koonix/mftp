@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/wait.h>
 #include "tui.h"
 #include "server.h"
@@ -35,32 +34,17 @@ static void print_info()
 
 static int handle_key(char key)
 {
-    if (key == 'q')
-        return 1;
+    if (key >= '1' && key <= '9')
+        mount_and_open(page, key - '0');
+
     else if (key == 'n' && page < get_total_pages())
         ++page;
+
     else if (key == 'p' && page > 1)
         --page;
-    else if (key >= '1' && key <= '9')
-    {
-        pid_t mounting = fork();
 
-        if (mounting == 0) {
-            mount_and_open(page, key - '0');
-            exit(0);
-        }
+    else if (key == 'q')
+        return 1;
 
-        pid_t blocking = fork();
-
-        if (blocking == 0) {
-            while(1)
-                getchar();
-        }
-
-        waitpid(mounting, NULL, 0);
-        kill(blocking, SIGKILL);
-
-        printf("done\n");
-    }
     return 0;
 }
