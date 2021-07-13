@@ -33,7 +33,7 @@ void mount_and_open(int page, int num)
     Server* sv = get_server(page, num);
     if (sv == NULL || !mount(*sv))
         return;
-    tui_end();
+    tui_disable();
     open_filemanager();
     wait(NULL);
     unmount();
