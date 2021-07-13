@@ -9,6 +9,7 @@
 #define SERVERS_PER_PAGE 9
 
 static int mount(Server sv);
+static Server* get_server(unsigned int page, unsigned int num);
 static int wait_for_child_with_animation();
 static void open_filemanager();
 static void unmount();
@@ -27,9 +28,10 @@ void print_page(int page)
         printf("%d: %s\n", j, servers[i].name);
 }
 
-void mount_and_open(Server sv)
+void mount_and_open(unsigned int page, unsigned int num)
 {
-    if (!mount(sv))
+    Server* sv = get_server(page, num);
+    if (sv == NULL || !mount(sv))
         return;
     tui_end();
     open_filemanager();
@@ -85,14 +87,6 @@ static int mount(Server sv)
         return 0;
 }
 
-Server* get_server(int page, int num)
-{
-    int index = num - 1 + ( (page - 1) * SERVERS_PER_PAGE);
-    if (index + 1 > server_count)
-        return NULL;
-    return &servers[index];
-}
-
 static void open_filemanager()
 {
     if (fork() == 0) {
@@ -107,4 +101,12 @@ static void unmount()
         execlp("fusermount", "fusermount", "-u", "/home/koonix/phone", (char *) NULL);
         exit(0);
     }
+}
+
+static Server* get_server(int page, int num)
+{
+    int index = num - 1 + ( (page - 1) * SERVERS_PER_PAGE);
+    if (index + 1 > server_count)
+        return NULL;
+    return &servers[index];
 }
