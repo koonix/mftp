@@ -42,6 +42,6 @@ static int handle_key(char key)
     else if (key == 'p' && page > 1)
         --page;
     else if (key >= '1' && key <= '9')
-        mount(get_server(page, key - '0'));
+        mount_and_open(*get_server(page, key - '0'));
     return 0;
 }

@@ -18,5 +18,6 @@ typedef struct {
 int get_total_pages();
 void print_page(int page);
 void mount_and_open(Server sv);
+Server* get_server(int page, int num);
 
 #endif /* PARSE_H */

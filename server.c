@@ -8,8 +8,10 @@
 
 #define SERVERS_PER_PAGE 9
 
-static int waiting_animation();
-static const Server* get_server(int page, int num);
+static int mount(Server sv);
+static int wait_for_child_with_animation();
+static void open_filemanager();
+static void unmount();
 
 #include "config.h"
 const int server_count = sizeof(servers) / sizeof(servers[0]);
@@ -27,28 +29,13 @@ void print_page(int page)
 
 void mount_and_open(Server sv)
 {
-    mount(sv);
-
-    if (waiting_animation() != 0)
+    if (!mount(sv))
         return;
-
     tui_end();
-
     open_filemanager();
-    if (fork() == 0) {
-        execvp( ((char **) file_manager)[0], (char **) file_manager );
-        exit(0);
-    }
-
     wait(NULL);
-
-    if (fork() == 0) {
-        execlp("fusermount", "fusermount", "-u", "/home/koonix/phone", (char *) NULL);
-        exit(0);
-    }
-
+    unmount();
     wait(NULL);
-
     tui_init();
 }
 
@@ -57,7 +44,7 @@ int get_total_pages()
     return (server_count > 0) ? (server_count - 1) / SERVERS_PER_PAGE + 1 : 1;
 }
 
-static int waiting_animation()
+static int wait_for_child_with_animation()
 {
     char* cycle[] = { ".", "..", "...", };
     int status;
@@ -73,13 +60,13 @@ static int waiting_animation()
         sleep_msec(200);
     }
 
-    if (WIFEXITED(status)) {
+    if (WIFEXITED(status))
         return WEXITSTATUS(status);
-    } else
+    else
         return -1;
 }
 
-static void mount(Server sv)
+static int mount(Server sv)
 {
     char opts[200];
     char host[200];
@@ -91,12 +78,33 @@ static void mount(Server sv)
         execlp("timeout", "timeout", "5s", "curlftpfs", "-o", opts, host, "/home/koonix/phone", (char *) NULL);
         exit(0);
     }
+
+    if (wait_for_child_with_animation() == 0)
+        return 1;
+    else
+        return 0;
 }
 
-static const Server* get_server(int page, int num)
+Server* get_server(int page, int num)
 {
     int index = num - 1 + ( (page - 1) * SERVERS_PER_PAGE);
     if (index + 1 > server_count)
         return NULL;
     return &servers[index];
+}
+
+static void open_filemanager()
+{
+    if (fork() == 0) {
+        execvp( ((char **)file_manager)[0], (char **)file_manager );
+        exit(0);
+    }
+}
+
+static void unmount()
+{
+    if (fork() == 0) {
+        execlp("fusermount", "fusermount", "-u", "/home/koonix/phone", (char *) NULL);
+        exit(0);
+    }
 }
