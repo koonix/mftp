@@ -9,7 +9,7 @@
 #define SERVERS_PER_PAGE 9
 
 static int mount(Server sv);
-static Server* get_server(unsigned int page, unsigned int num);
+static Server* get_server(int page, int num);
 static int wait_for_child_with_animation();
 static void open_filemanager();
 static void unmount();
@@ -28,7 +28,7 @@ void print_page(int page)
         printf("%d: %s\n", j, servers[i].name);
 }
 
-void mount_and_open(unsigned int page, unsigned int num)
+void mount_and_open(int page, int num)
 {
     Server* sv = get_server(page, num);
     if (sv == NULL || !mount(sv))
