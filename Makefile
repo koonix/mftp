@@ -3,7 +3,7 @@
 
 # config
 SRCS = main.c tui.c server.c util.c
-CFLAGS = -pedantic -Wall -Werror=implicit -Os
+CFLAGS = -pedantic -Wall -Wextra -Werror=implicit -Os
 OBJDIR := obj
 DEPDIR := $(OBJDIR)/dep
 
