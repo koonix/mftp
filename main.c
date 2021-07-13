@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/wait.h>
 #include "tui.h"
 #include "server.h"
 
