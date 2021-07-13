@@ -25,6 +25,11 @@ void tui_init() {
 }
 
 void tui_end() {
+    tui_disable();
+    kill(0, SIGTERM);
+}
+
+void tui_disable() {
     show_cursor();
     orig_screen();
     restore_stdin_buffering();
