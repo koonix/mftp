@@ -6,13 +6,14 @@ SRCS = main.c tui.c server.c util.c
 CFLAGS = -pedantic -Wall -Wextra -Werror=implicit -Os
 OBJDIR := obj
 DEPDIR := $(OBJDIR)/dep
+BIN = mftp
 
 # rules
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 # link object files and finish compilation
 OBJS = $(SRCS:%.c=$(OBJDIR)/%.o)
-mftp: config.h $(OBJS)
+$(BIN): config.h $(OBJS)
 	@$(CC) $(CFLAGS) -o $@ $(OBJS)
 	@echo compiled successfully.
 
@@ -35,5 +36,6 @@ include $(wildcard $(DEPFILES))
 
 clean:
 	@rm -rfv obj
+	@rm $(BIN)
 
 .PHONY: clean
