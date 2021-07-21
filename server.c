@@ -6,16 +6,39 @@
 #include "util.h"
 #include "tui.h"
 
+
 #define SERVERS_PER_PAGE 9
 
-static int mount(Server sv);
-static Server* get_server(int page, int num);
-static int wait_for_child_with_animation();
-static void open_filemanager();
-static void unmount();
+
+typedef enum {
+    FTP,
+    SSH
+} Type;
+
+typedef struct {
+    const char* name;
+    const Type  type;
+    const char* host;
+    const char* port;
+    const char* user;
+    const char* pass;
+    const char* mountpoint;
+    const char* keyfile;
+} Server;
+
 
 #include "config.h"
 const int server_count = sizeof(servers) / sizeof(servers[0]);
+
+
+static int mount(int page, int num);
+static Server* get_server(int page, int num);
+static void mounting_animation();
+static void run_while_process_running(pid_t procpid, void (*fn)());
+static void open_filemanager();
+static void unmount();
+static void mount_ftp(Server sv);
+
 
 void print_page(int page)
 {
@@ -28,47 +51,63 @@ void print_page(int page)
         printf("%d: %s\n", j, servers[i].name);
 }
 
-void mount_and_open(int page, int num)
-{
-    Server* sv = get_server(page, num);
-    if (sv == NULL || !mount(*sv))
-        return;
-    tui_disable();
-    open_filemanager();
-    wait(NULL);
-    unmount();
-    wait(NULL);
-    tui_init();
-}
 
 int get_total_pages()
 {
     return (server_count > 0) ? (server_count - 1) / SERVERS_PER_PAGE + 1 : 1;
 }
 
-static int wait_for_child_with_animation()
+
+void mount_and_open(int page, int num)
 {
-    char* cycle[] = { ".", "..", "...", };
-    int status;
-    int i = 0;
-
-    while (waitpid(-1, &status, WNOHANG) == 0) {
-        printf("\033[%s", "K");
-        printf("mounting%s\r", cycle[i]);
-        fflush(stdout);
-        i++;
-        if ( i >= sizeof(cycle) / sizeof(cycle[0]) )
-            i=0;
-        sleep_msec(200);
-    }
-
-    if (WIFEXITED(status))
-        return WEXITSTATUS(status);
-    else
-        return -1;
+    if (!mount(page, num))
+        return;
+    open_filemanager();
+    unmount();
 }
 
-static int mount(Server sv)
+
+static int mount(int page, int num)
+{
+    Server* sv = get_server(page, num);
+    if (sv == NULL)
+        return 1;
+
+    switch (sv->type) {
+        case FTP: mount_ftp(*sv); break;
+        /* case SSH: mount_ssh(Server sv); break; */
+    }
+
+    return 0;
+}
+
+
+static void open_filemanager()
+{
+    tui_disable();
+    pid_t pid = fork();
+    if (pid == 0) {
+        execvp( ((char **)file_manager)[0], (char **)file_manager );
+        exit(0);
+    }
+    waitpid(pid, NULL, 0);
+    tui_init();
+}
+
+
+static void unmount()
+{
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("fusermount", "fusermount", "-u",
+                "/home/koonix/phone", (char *) NULL);
+        exit(0);
+    }
+    waitpid(pid, NULL, 0);
+}
+
+
+static void mount_ftp(Server sv)
 {
     char opts[200];
     char host[200];
@@ -76,32 +115,50 @@ static int mount(Server sv)
     sprintf(opts, "utf8,transform_symlinks,user=%s:%s", sv.user, sv.pass);
     sprintf(host, "ftp://%s:%s", sv.host, sv.port);
 
-    if (fork() == 0) {
-        execlp("timeout", "timeout", "5s", "curlftpfs", "-o", opts, host, "/home/koonix/phone", (char *) NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        /* execlp("timeout", "timeout", "5s", "curlftpfs", "-o", opts, host, */
+        /*         sv.mountpoint, (char *) NULL); */
+        execlp("sleep", "sleep", "2", (char *)NULL);
         exit(0);
     }
 
-    if (wait_for_child_with_animation() == 0)
-        return 1;
-    else
-        return 0;
+    run_while_process_running(pid, mounting_animation);
+    waitpid(pid, NULL, 0);
 }
 
-static void open_filemanager()
+
+static void run_while_process_running(pid_t procpid, void (*fn)())
 {
-    if (fork() == 0) {
-        execvp( ((char **)file_manager)[0], (char **)file_manager );
+    pid_t fnpid = fork();
+    if (fnpid == 0) {
+        fn();
         exit(0);
+    }
+
+    siginfo_t info;
+    waitid(P_PID, procpid, &info, WEXITED | WNOWAIT);
+    kill(fnpid, SIGKILL);
+    waitpid(fnpid, NULL, 0);
+}
+
+
+static void mounting_animation()
+{
+    char* cycle[] = { ".", "..", "...", };
+    int num_cycles = sizeof(cycle) / sizeof(cycle[0]);
+    int i = 0;
+
+    while (1) {
+        clear_line();
+        printf("mounting%s\r", cycle[i]);
+        fflush(stdout);
+        sleep_msec(200);
+        if ( ++i >= num_cycles )
+            i = 0;
     }
 }
 
-static void unmount()
-{
-    if (fork() == 0) {
-        execlp("fusermount", "fusermount", "-u", "/home/koonix/phone", (char *) NULL);
-        exit(0);
-    }
-}
 
 static Server* get_server(int page, int num)
 {

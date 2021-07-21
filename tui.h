@@ -12,5 +12,7 @@ void clear_all();
 void clear_line();
 void cursor_home();
 void cursor_line_column(int line, int column);
+void tui_block_input();
+void tui_no_block_input();
 
 #endif /* TUI_H */

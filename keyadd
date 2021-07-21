@@ -1,0 +1,4 @@
+#!/bin/sh
+key="$1"
+pidof ssh-agent || exit 2
+ssh-add -l | grep -Fq "$(ssh-keygen -lf "$key")" || ssh-add "$key"

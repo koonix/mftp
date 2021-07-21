@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include "tui.h"
 
@@ -14,52 +15,81 @@ static void seq(char* s);
 static void no_stdin_buffering();
 static void restore_stdin_buffering();
 static void tui_end_sigfn(int sig);
+static void tui_no_handle_signals();
 
 static struct termios told;
+static pid_t block_input_pid;
 
-void tui_init() {
+void tui_init()
+{
     handle_signals();
     no_stdin_buffering();
     alt_screen();
     hide_cursor();
 }
 
-void tui_end() {
+void tui_end()
+{
     tui_disable();
     kill(0, SIGTERM);
 }
 
-void tui_disable() {
+void tui_disable()
+{
     show_cursor();
     orig_screen();
     restore_stdin_buffering();
 }
 
-void clear_line() {
+void tui_block_input()
+{
+    if ((block_input_pid = fork()) == 0) {
+        tui_no_handle_signals();
+        while (1) {
+            getchar();
+        }
+        exit(0);
+    }
+}
+
+void tui_no_block_input()
+{
+    kill(block_input_pid, SIGTERM);
+    waitpid(block_input_pid, NULL, 0);
+}
+
+void clear_line()
+{
     seq("K");
 }
 
-void clear_all() {
+void clear_all()
+{
     seq("2J");
 }
 
-void clear_to_top() {
+void clear_to_top()
+{
     seq("1J");
 }
 
-void clear_to_bottom() {
+void clear_to_bottom()
+{
     seq("0J");
 }
 
-void cursor_home() {
+void cursor_home()
+{
     seq("H");
 }
 
-void cursor_up() {
+void cursor_up()
+{
     seq("A");
 }
 
-void cursor_down() {
+void cursor_down()
+{
     seq("B");
 }
 
@@ -69,27 +99,33 @@ void cursor_line_column(int line, int column) {
     seq(s);
 }
 
-static void hide_cursor() {
+static void hide_cursor()
+{
     seq("?25l");
 }
 
-static void show_cursor() {
+static void show_cursor()
+{
     seq("?25h");
 }
 
-static void alt_screen() {
+static void alt_screen()
+{
     seq("?1049h");
 }
 
-static void orig_screen() {
+static void orig_screen()
+{
     seq("?1049l");
 }
 
-static void seq(char* s) {
+static void seq(char* s)
+{
     printf("\033[%s", s);
 }
 
-static void no_stdin_buffering() {
+static void no_stdin_buffering()
+{
     struct termios tnew;
     tcgetattr(STDIN_FILENO, &told);
     tnew = told;
@@ -97,22 +133,27 @@ static void no_stdin_buffering() {
     tcsetattr(STDIN_FILENO, TCSANOW, &tnew);
 }
 
-static void restore_stdin_buffering() {
+static void restore_stdin_buffering()
+{
     tcsetattr(STDIN_FILENO,TCSANOW,&told);
 }
 
-static void handle_signals() {
+static void handle_signals()
+{
     signal(SIGINT, tui_end_sigfn);
     signal(SIGTERM, tui_end_sigfn);
     signal(SIGABRT, tui_end_sigfn);
 }
 
-void tui_no_handle_sigint() {
+static void tui_no_handle_signals()
+{
     signal(SIGINT, SIG_DFL);
     signal(SIGTERM, SIG_DFL);
+    signal(SIGABRT, SIG_DFL);
 }
 
-static void tui_end_sigfn(int sig) {
+static void tui_end_sigfn(int sig)
+{
     tui_end();
     exit(1);
 }
